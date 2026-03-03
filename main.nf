@@ -2,14 +2,18 @@
 
 nextflow.enable.dsl=2
 
+
+txpat2 = "full-splice_match"
 process ListMolecule {
     // search pigeon classification output, scisoseq.annotated.info.csv, for a list of molecules mapped to the transcript, tx. 
     tag "$tx"
     errorStrategy 'retry'
     maxRetries 3 
+    
 
     input: 
         val tx
+        val type
     output:
         path "molecules.${tx}.list", emit: listfile
         path "ListMolecule.done"
@@ -17,10 +21,18 @@ process ListMolecule {
 
     script:
 
-    """
-    awk -v pattern="${tx}" -e '\$2==pattern {print \$1}' ${params.infocsv} | sort|uniq > molecules.${tx}.list && sleep 20 && \
-    echo done > ListMolecule.done
-    """
+    if (params.type == "pb")
+        """
+        awk -v pattern="${tx}" -v pattern2="${txpat2}" -e '(\$4==pattern || \$4~pattern"_" || \$4~pattern"\$") && \$6~pattern2 {print \$1}' ${params.infocsv} | sort|uniq > molecules.${tx}.list && sleep 20 && \
+        echo done > ListMolecule.done
+        """
+    else if (params.type == "ONT")
+        """
+        awk -v pattern="${tx}" -e '\$2==pattern {print \$1}' ${params.infocsv} | sort|uniq > molecules.${tx}.list && sleep 20 && \
+        echo done > ListMolecule.done
+        """
+    else
+        error "Invalid input data type ${params.type}"
 }
 
 process PrintEmptyMoleculeList{
@@ -68,7 +80,7 @@ process ExtractMoleculeBam {
 
     script:
     """
-    samtools view --threads 4 --qname-file ${listfile} -b ${params.bamfile} | samtools sort --threads 4 -o molecules.${tx}.bam && \
+    samtools view --threads 2 --qname-file ${listfile} -b ${params.bamfile} | samtools sort --threads 2 -o molecules.${tx}.bam && \
         samtools index molecules.${tx}.bam && sleep 30 && \
         echo done > ExtractMoleculeBam.done
 
@@ -145,13 +157,20 @@ process CatGeneBodyCoverage {
 }
 
 workflow {
-    
+    // def sampleids = Channel.fromList(params.sample_ids)
+    // def sampleids = Channel.fromList(['CRR058013'])
+    // test_fastq(sampleids)
+    // STARSolo(sampleids)
+    // def read_pairs = Channel.fromFilePairs("${params.reads}/$sampleids"+"_{f1,r2}.fastq.gz")
+    // println "${params.reads}/$sampleids[0]"+"_{f1,r2}.fastq.gz"
+    // read_pairs.view()
+
     // load list of transcripts
     tx_list = Channel.from(file(params.txlist).readLines())
     // tx_list.view()
 
     // search pigeon classification output, scisoseq.annotated.info.csv, for a list of molecules mapped to the transcript, tx. 
-    ListMolecule(tx_list)
+    ListMolecule(tx_list, params.type)
 
     // from pbmm2 mapped bamfile, scisoseq.mapped.bam, extract bams listed from ListMolecule()
     ExtractMoleculeBam(ListMolecule.out.listfile, ListMolecule.out.tx)
