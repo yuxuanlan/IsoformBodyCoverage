@@ -1,0 +1,64 @@
+BootStrap: docker
+From: ubuntu:20.04
+
+
+%environment
+	source /opt/software/conda/bin/activate /opt/software/conda
+	export PATH=/opt/software/conda/bin:/opt/software/conda/RSeQC_sourceforge/bin:$PATH
+
+%test
+	# source /opt/software/conda/bin/activate /opt/software/conda
+	geneBody_coverage.py -h
+
+%post
+	TZ=Europe/London
+	ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
+
+	apt update
+	apt -y upgrade
+	apt -y install curl wget make git
+
+	apt -y install build-essential
+	# apt -y install software-properties-common
+	apt -y install libmpfr-dev libgmp3-dev libmpc-dev libz-dev
+	# apt install -y autotools-dev build-essential wget bash git liblapack-dev libblas-dev libxml2-dev libprotobuf-dev uuid-dev libssl-dev libkrb5-dev libhwloc-dev libopenmpi-dev openmpi-bin libtcmalloc-minimal4 pkg-config gsasl libgsasl7-dev libboost-all-dev #libgoogle-perftools-dev google-mock googletest protobuf-compiler libpapi-dev libhwloc-dev libicu-dev
+
+
+	#apt -y install epel-release
+    #apt -y install yum-utils htslib-tools
+    #apt -y groupinstall "Development Tools"
+
+	mkdir -p /opt/software
+	cd /opt/software
+	
+	curl -O https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh
+    bash ./Miniconda3-latest-Linux-x86_64.sh -p /opt/software/conda -b
+    rm Miniconda3-latest-Linux-x86_64.sh
+    export PATH=/opt/software/conda/bin:$PATH
+
+    conda -V
+    conda update -y conda
+    conda config --add channels r
+    conda config --add channels defaults
+    conda config --add channels conda-forge
+    conda config --add channels bioconda
+
+    # create conda env under /opt/software/conda_env
+    conda create -p /opt/software/conda_env -y python=3 numpy
+
+    cd /opt/software/conda/
+    #wget https://sourceforge.net/projects/subread/files/subread-2.0.6/subread-2.0.6-source.tar.gz
+    #tar -zxvf subread-2.0.6-source.tar.gz 
+    #cd subread-2.0.6-source/src/
+    #make -f Makefile.Linux
+
+    git clone https://github.com/yuxuanlan/RSeQC_sourceforge.git
+	#cd RSeQC_sourceforge
+	pip install ./RSeQC_sourceforge
+	#python setup.py install
+	#rseqc --help
+
+    conda clean --all --yes	
+    export PATH=/opt/software/conda/bin:/opt/software/conda/RSeQC_sourceforge/bin:$PATH
+
+
