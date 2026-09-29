@@ -1,4 +1,5 @@
 // standard run case:'nextflow run scqc_nf.sh -c PIP-3144.config -with-dag flowchart.png -with-report -resume'
+// v2: from v1. updated for paper publication
 
 nextflow.enable.dsl=2
 
@@ -47,7 +48,7 @@ process PrintEmptyMoleculeList{
 
 process ExtractMoleculeBam {
     // make bam file containing only the listed molicues
-    beforeScript 'source package 638df626-d658-40aa-80e5-14a275b7464b'
+    beforeScript 'source samtools-1.23.1_CBG'
     tag "$tx"
     // errorStrategy { task.exitStatus == 143 ? 'retry' : 'terminate' } 
     errorStrategy 'retry'
@@ -145,7 +146,14 @@ process CatGeneBodyCoverage {
 }
 
 workflow {
-    
+    // def sampleids = Channel.fromList(params.sample_ids)
+    // def sampleids = Channel.fromList(['CRR058013'])
+    // test_fastq(sampleids)
+    // STARSolo(sampleids)
+    // def read_pairs = Channel.fromFilePairs("${params.reads}/$sampleids"+"_{f1,r2}.fastq.gz")
+    // println "${params.reads}/$sampleids[0]"+"_{f1,r2}.fastq.gz"
+    // read_pairs.view()
+
     // load list of transcripts
     tx_list = Channel.from(file(params.txlist).readLines())
     // tx_list.view()
